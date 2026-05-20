@@ -363,6 +363,43 @@ class TestPipeline:
                 [("drop_columns", {"columns": ["missing"]})],
             )
 
+    def test_pipeline_select_columns(self, sample_csv):
+        frame = ar.read_csv(sample_csv)
+
+        result = ar.pipeline(
+            frame,
+            [
+                ("select_columns", {"columns": ["email", "name"]}),
+            ],
+        )
+
+        assert result.columns == ["email", "name"]
+
+    def test_pipeline_select_columns_allows_empty_columns(self, sample_csv):
+        frame = ar.read_csv(sample_csv)
+
+        result = ar.pipeline(
+            frame,
+            [
+                ("select_columns", {"columns": []}),
+            ],
+        )
+
+        assert result.columns == []
+
+    def test_pipeline_select_columns_rejects_missing_columns(self, sample_csv):
+        import pytest
+
+        frame = ar.read_csv(sample_csv)
+
+        with pytest.raises(ValueError, match="Columns not found in frame"):
+            ar.pipeline(
+                frame,
+                [
+                    ("select_columns", {"columns": ["missing"]}),
+                ],
+            )
+
     def test_pipeline_validate_columns_exist_rejects_missing_columns(self, sample_csv):
         import pytest
 

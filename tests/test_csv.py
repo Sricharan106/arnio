@@ -697,7 +697,7 @@ class TestScanCsv:
     def test_scan_non_utf8_crlf_split_across_chunk_boundary(self, tmp_path):
         csv_path = tmp_path / "latin1_crlf_boundary.csv"
         header = "pad,value\r\n"
-        row1 = f'{"x" * 8176},100\r\n'
+        row1 = f"{'x' * 8176},100\r\n"
         row2 = "y,hello\r\n"
         row3 = "z,200\r\n"
         csv_path.write_bytes((header + row1 + row2 + row3).encode("latin-1"))

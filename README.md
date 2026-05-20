@@ -85,7 +85,6 @@ df = ar.to_pandas(clean)
 safe_df = ar.to_pandas(clean, copy=True)
 ```
 
-
 ### Dry Run Validation
 
 Use `dry_run=True` to validate pipeline configuration and
@@ -161,6 +160,7 @@ clean_df = df.arnio.clean([
 
 report = clean_df.arnio.profile()
 ```
+
 ## Cross-field validation rules
 
 Pass a `rules` list to `Schema` for checks that span multiple columns.
@@ -190,6 +190,7 @@ schema = ar.Schema(
 result = schema.validate(ar.read_csv("events.csv"))
 print(result.passed)
 ```
+
 > **Row index convention:** `ValidationIssue.row_index` values are **1-based** and
 > count data rows only. The header row is excluded. `row_index=1` is the first data
 > row in the file.
@@ -229,12 +230,16 @@ Example contract files are included under `examples/contracts/`.
 Use `select_columns()` to create a new `ArFrame` with only the required columns before converting to pandas.
 
 ```python
-selected = frame.select_columns(["name", "revenue"])
+selected = ar.select_columns(frame, ["name", "revenue"])
 
 print(selected.columns)
 # ['name', 'revenue']
 ```
 
+- Preserves the requested column order.
+- Returns a new `ArFrame`.
+- Raises `ValueError` if any requested column does not exist.
+- Raises `TypeError` if `columns` is not a sequence of strings.
 
 ### Handling missing values
 
@@ -279,11 +284,11 @@ export policy should stay explicit in the application that writes the file.
 
 ### `read_csv` and `scan_csv`
 
-| Input | Raises | Message |
-|:---|:---|:---|
-| File not found | `CsvReadError` | `Cannot open file: <path>` |
-| Zero-byte file | `CsvReadError` | `CSV file is empty: '<path>'` |
-| Blank header line | `CsvReadError` | `CSV header contains an empty column name` |
+| Input              | Raises         | Message                                                              |
+| :----------------- | :------------- | :------------------------------------------------------------------- |
+| File not found     | `CsvReadError` | `Cannot open file: <path>`                                           |
+| Zero-byte file     | `CsvReadError` | `CSV file is empty: '<path>'`                                        |
+| Blank header line  | `CsvReadError` | `CSV header contains an empty column name`                           |
 | Binary / NUL bytes | `CsvReadError` | `CSV input contains NUL bytes and appears to be binary or corrupted` |
 
 ### Schema Validation
@@ -307,6 +312,7 @@ schema = ar.scan_csv("100GB_file.csv", sample_size=500)
 ```
 
 Useful for exploring datasets before committing memory.
+
 </details>
 
 <details>
@@ -333,6 +339,7 @@ clean = ar.pipeline(frame, [("strip_whitespace",), ("drop_nulls",)])
 ```
 
 Raises `ar.JsonlReadError` with the 1-based line number if a line contains invalid JSON.
+
 </details>
 
 <details>
@@ -349,6 +356,7 @@ print(frame.preview(n=10))  # first 10 rows
 ```
 
 Raises `ValueError` for invalid `n` (zero, negative, or non-integer).
+
 </details>
 
 <details>
@@ -357,8 +365,8 @@ Raises `ValueError` for invalid `n` (zero, negative, or non-integer).
 
 `arnio` provides support for converting Python `decimal.Decimal` objects.
 
-* **Behavior**: Python `Decimal` objects are automatically preserved as high-precision strings during serialization/binding to prevent floating-point precision loss.
-* **Caveat**: When reading back into Pandas, `to_pandas()` returns these as string (`object` dtype) columns. You will need to explicitly cast them back to `Decimal` objects on the resulting DataFrame if you want to resume exact math.
+- **Behavior**: Python `Decimal` objects are automatically preserved as high-precision strings during serialization/binding to prevent floating-point precision loss.
+- **Caveat**: When reading back into Pandas, `to_pandas()` returns these as string (`object` dtype) columns. You will need to explicitly cast them back to `Decimal` objects on the resulting DataFrame if you want to resume exact math.
 
 Example:
 
@@ -425,6 +433,7 @@ print(ar.list_steps())
 ```
 
 Custom steps run through a pandas↔ArFrame conversion bridge. Prototype in Python, then optionally migrate hot paths to C++ for full speed.
+
 </details>
 
 <details>
@@ -449,7 +458,9 @@ def custom_logging_v2(df):
 
 ar.register_step("log_data", custom_logging_v2, overwrite=True)
 ```
+
 > Note: Built-in C++ pipeline steps (like "drop_nulls") can never be overwritten, even if overwrite=True is explicitly supplied.
+
 </details>
 
 <details>
@@ -457,6 +468,7 @@ ar.register_step("log_data", custom_logging_v2, overwrite=True)
 <br>
 
 `head()` and `tail()` return the first or last `n` rows as a new `ArFrame`.
+
 ```python
 frame = ar.read_csv("data.csv")
 
@@ -472,6 +484,7 @@ frame.head(0)
 ```
 
 Raises `ValueError` for negative or boolean `n`.
+
 </details>
 
 <br>
@@ -485,13 +498,13 @@ Raises `ValueError` for negative or boolean `n`.
 Arnio is designed to make the rest of the Python data stack more productive,
 not to replace it.
 
-| Workflow | How Arnio helps |
-|:---|:---|
-| **pandas** | Clean, validate, and profile messy `DataFrame`s through `df.arnio`. |
-| **NumPy** | Prepare typed numeric data before array/modeling workflows. |
-| **scikit-learn** | Use Arnio cleaning as a preprocessing layer before model training. |
-| **DuckDB / Arrow** | Validate and prepare data before analytics and columnar exchange. |
-| **notebooks** | Inspect quality issues and cleaning suggestions before analysis. |
+| Workflow           | How Arnio helps                                                     |
+| :----------------- | :------------------------------------------------------------------ |
+| **pandas**         | Clean, validate, and profile messy `DataFrame`s through `df.arnio`. |
+| **NumPy**          | Prepare typed numeric data before array/modeling workflows.         |
+| **scikit-learn**   | Use Arnio cleaning as a preprocessing layer before model training.  |
+| **DuckDB / Arrow** | Validate and prepare data before analytics and columnar exchange.   |
+| **notebooks**      | Inspect quality issues and cleaning suggestions before analysis.    |
 
 ### Row-dropping pipeline behavior
 
@@ -548,6 +561,7 @@ They follow a simple workflow:
 - **Arnio + pandas**
   Clean and normalize messy tabular data using Arnio, then analyze it using pandas.
   Run:
+
 ```bash
   python examples/arnio_with_pandas.py
 ```
@@ -555,6 +569,7 @@ They follow a simple workflow:
 - **Arnio + NumPy**
   Prepare numeric data safely using Arnio, then perform computations using NumPy.
   Run:
+
 ```bash
   python examples/arnio_with_numpy.py
 ```
@@ -562,6 +577,7 @@ They follow a simple workflow:
 - **Arnio + scikit-learn**
   Prepare messy data with Arnio, then train a model with scikit-learn.
   Run:
+
 ```bash
   python examples/arnio_with_sklearn.py
 ```
@@ -569,11 +585,10 @@ They follow a simple workflow:
 - **Arnio + DuckDB**
   Clean data with Arnio, then run SQL queries using DuckDB.
   Run:
+
 ```bash
   python examples/arnio_with_duckdb.py
 ```
-
-
 
 <br>
 
@@ -603,6 +618,7 @@ Six lines. Four full-data passes. All in interpreted Python. This is fine for a 
 <td width="50%">
 
 ### Without Arnio
+
 ```python
 df = pd.read_csv(path)
 df.columns = df.columns.str.strip()
@@ -618,6 +634,7 @@ df = df.drop_duplicates()
 <td width="50%">
 
 ### With Arnio
+
 ```python
 frame = ar.read_csv(path)
 df = ar.to_pandas(ar.pipeline(frame, [
@@ -664,13 +681,13 @@ flowchart LR
 
 ### Design decisions that matter
 
-| Decision | What it means |
-|:---|:---|
-| **Columnar storage** | Data lives in typed `std::vector`s — `vector<int64_t>`, `vector<double>`, `vector<string>` — not rows of variants. Cache-friendly and SIMD-ready. |
-| **Boolean null masks** | Nulls are tracked in a separate `vector<bool>`, keeping data vectors dense. No sentinel values, no NaN tricks. |
-| **Two-pass CSV read** | Pass 1 infers types across all rows. Pass 2 parses values directly into the correct typed column. No string→object→cast overhead. |
-| **Zero-copy bridge** | `to_pandas()` exposes C++ memory directly via NumPy's buffer protocol where supported. Numeric columns preserve the fast zero-copy path by default, while `copy=True` requests defensive pandas-owned buffers. |
-| **Step registry** | Pipeline steps map to C++ function pointers. Adding a new cleaning primitive is a single function + one registry entry. |
+| Decision               | What it means                                                                                                                                                                                                  |
+| :--------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Columnar storage**   | Data lives in typed `std::vector`s — `vector<int64_t>`, `vector<double>`, `vector<string>` — not rows of variants. Cache-friendly and SIMD-ready.                                                              |
+| **Boolean null masks** | Nulls are tracked in a separate `vector<bool>`, keeping data vectors dense. No sentinel values, no NaN tricks.                                                                                                 |
+| **Two-pass CSV read**  | Pass 1 infers types across all rows. Pass 2 parses values directly into the correct typed column. No string→object→cast overhead.                                                                              |
+| **Zero-copy bridge**   | `to_pandas()` exposes C++ memory directly via NumPy's buffer protocol where supported. Numeric columns preserve the fast zero-copy path by default, while `copy=True` requests defensive pandas-owned buffers. |
+| **Step registry**      | Pipeline steps map to C++ function pointers. Adding a new cleaning primitive is a single function + one registry entry.                                                                                        |
 
 > Full architecture documentation: **[ARCHITECTURE.md](ARCHITECTURE.md)**
 > API reference guide: **[Arnio API Reference](./API_REFERENCE.md)**
@@ -757,6 +774,7 @@ python benchmarks/benchmark_auto_clean_memory.py --rows 100000
 ```
 
 This script generates a reproducible synthetic dataset with mixed column types (strings, ints, floats, booleans, nulls, and duplicates) and measures:
+
 - `ar.read_csv` performance
 - `ar.auto_clean(mode="safe")` performance (low-risk cleanup like whitespace trimming)
 - `ar.auto_clean(mode="strict")` performance (includes type casting and deduplication)
@@ -765,6 +783,7 @@ The dataset is regenerated deterministically unless `--reuse-file` is provided.
 Each `auto_clean` benchmark run reloads the dataset to avoid mutation or caching effects between runs.
 
 Options:
+
 - `--repeat N` runs each operation multiple times and reports average (and min/max range).
 - `--seed N` changes the deterministic dataset seed.
 - `--reuse-file` reuses an existing dataset file instead of regenerating it.
@@ -781,6 +800,7 @@ ar.auto_clean(strict) 0.035 (0.034-0.036)    1.20 (1.18-1.22)
 --------------------------------------------------------------------
 Total avg (Read+Strict)       0.077             4.52
 ```
+
 <br>
 
 ---
@@ -791,30 +811,31 @@ Total avg (Read+Strict)       0.077             4.52
 
 Most operations below run natively in C++. Currently, `filter_rows`, `replace_values` and `standardize_missing_tokens` run via the Python (pandas) backend and may be optimized in C++ later.
 
-| Primitive | What it does | Example |
-|:---|:---|:---|
-| `drop_nulls` | Remove rows with null/empty values | `ar.drop_nulls(frame, subset=["age"])` |
-| `drop_columns` | Remove selected columns while preserving the remaining order | `frame = ar.drop_columns(frame, ["debug_col"])` |
-| `keep_rows_with_nulls` | Keep only rows that contain at least one null | `ar.keep_rows_with_nulls(frame, subset=["age"])` |
-| `validate_columns_exist` | Fail early when required columns are missing | `ar.validate_columns_exist(frame, ["age"])` |
-| `filter_rows` | Filter rows using comparison operators | `ar.filter_rows(frame, column="age", op=">", value=18)` |
-| `fill_nulls` | Replace nulls with a scalar | `ar.fill_nulls(frame, 0, subset=["revenue"])` |
-| `drop_duplicates` | Deduplicate rows (first/last/none) | `ar.drop_duplicates(frame, keep="first")` |
-| `drop_constant_columns` | Remove columns with only one unique value | `ar.drop_constant_columns(frame)` |
-| `clip_numeric` | Clip numeric values to lower and/or upper bounds | `ar.clip_numeric(frame, lower=0, upper=100)` |
-| `coalesce_columns` | Select the first non-null value from a list of columns | `ar.coalesce_columns(frame, subset=["phone", "mobile"], output_column="contact")` |
-| `combine_columns` | Combine multiple columns into a single output column | `ar.combine_columns(frame, subset=["first", "last"], separator=" ", output_column="name")` |
-| `strip_whitespace` | Trim leading/trailing spaces from strings | `ar.strip_whitespace(frame)` |
-| `standardize_missing_tokens` | Replace common missing-value strings with NaN | `ar.standardize_missing_tokens(frame)` |
-| `normalize_case` | Force lower/upper/title case | `ar.normalize_case(frame, case_type="title")` |
-| `rename_columns` | Rename columns via mapping | `ar.rename_columns(frame, {"old": "new"})` |
-| `cast_types` | Cast column types | `ar.cast_types(frame, {"age": "int64"})` |
-| `round_numeric_columns` | Round numeric columns (non-numeric columns in subset ignored safely) | `ar.round_numeric_columns(frame, decimals=2)` |
-| `replace_values` | Replace values using a mapping (column or whole-frame). Handles `None`/`NaN`. | `ar.replace_values(frame, {"active": "A", "inactive": "I"}, column="status")` |
-| `clean` | Convenience shorthand | `ar.clean(frame, drop_nulls=True)` |
-| `safe_divide_columns` | Divide one column by another, handling zero/null denominators | `ar.safe_divide_columns(frame, numerator="revenue", denominator="cost", output_column="ratio")` |
-| `drop_columns_matching` | Drop columns whose names match a regex pattern | `ar.drop_columns_matching(frame, pattern="^temp_")` |
-| `trim_column_names` | Strip leading/trailing whitespace from column names | `ar.trim_column_names(frame)` |
+| Primitive                    | What it does                                                                  | Example                                                                                         |
+| :--------------------------- | :---------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------- |
+| `drop_nulls`                 | Remove rows with null/empty values                                            | `ar.drop_nulls(frame, subset=["age"])`                                                          |
+| `drop_columns`               | Remove selected columns while preserving the remaining order                  | `frame = ar.drop_columns(frame, ["debug_col"])`                                                 |
+| `keep_rows_with_nulls`       | Keep only rows that contain at least one null                                 | `ar.keep_rows_with_nulls(frame, subset=["age"])`                                                |
+| `validate_columns_exist`     | Fail early when required columns are missing                                  | `ar.validate_columns_exist(frame, ["age"])`                                                     |
+| `filter_rows`                | Filter rows using comparison operators                                        | `ar.filter_rows(frame, column="age", op=">", value=18)`                                         |
+| `fill_nulls`                 | Replace nulls with a scalar                                                   | `ar.fill_nulls(frame, 0, subset=["revenue"])`                                                   |
+| `drop_duplicates`            | Deduplicate rows (first/last/none)                                            | `ar.drop_duplicates(frame, keep="first")`                                                       |
+| `drop_constant_columns`      | Remove columns with only one unique value                                     | `ar.drop_constant_columns(frame)`                                                               |
+| `clip_numeric`               | Clip numeric values to lower and/or upper bounds                              | `ar.clip_numeric(frame, lower=0, upper=100)`                                                    |
+| `coalesce_columns`           | Select the first non-null value from a list of columns                        | `ar.coalesce_columns(frame, subset=["phone", "mobile"], output_column="contact")`               |
+| `combine_columns`            | Combine multiple columns into a single output column                          | `ar.combine_columns(frame, subset=["first", "last"], separator=" ", output_column="name")`      |
+| `strip_whitespace`           | Trim leading/trailing spaces from strings                                     | `ar.strip_whitespace(frame)`                                                                    |
+| `standardize_missing_tokens` | Replace common missing-value strings with NaN                                 | `ar.standardize_missing_tokens(frame)`                                                          |
+| `normalize_case`             | Force lower/upper/title case                                                  | `ar.normalize_case(frame, case_type="title")`                                                   |
+| `rename_columns`             | Rename columns via mapping                                                    | `ar.rename_columns(frame, {"old": "new"})`                                                      |
+| `cast_types`                 | Cast column types                                                             | `ar.cast_types(frame, {"age": "int64"})`                                                        |
+| `round_numeric_columns`      | Round numeric columns (non-numeric columns in subset ignored safely)          | `ar.round_numeric_columns(frame, decimals=2)`                                                   |
+| `replace_values`             | Replace values using a mapping (column or whole-frame). Handles `None`/`NaN`. | `ar.replace_values(frame, {"active": "A", "inactive": "I"}, column="status")`                   |
+| `clean`                      | Convenience shorthand                                                         | `ar.clean(frame, drop_nulls=True)`                                                              |
+| `safe_divide_columns`        | Divide one column by another, handling zero/null denominators                 | `ar.safe_divide_columns(frame, numerator="revenue", denominator="cost", output_column="ratio")` |
+| `drop_columns_matching`      | Drop columns whose names match a regex pattern                                | `ar.drop_columns_matching(frame, pattern="^temp_")`                                             |
+| `trim_column_names`          | Strip leading/trailing whitespace from column names                           | `ar.trim_column_names(frame)`                                                                   |
+| `select_columns`             | Return a new frame containing only selected columns                           | `ar.select_columns(frame, ["id", "name"])`                                                      |
 
 #### `ArFrame.select_dtypes` — type-based column selection
 
@@ -966,18 +987,18 @@ This table helps users understand which pandas dtypes and workflows are fully su
 
 If a dtype is partially supported, users may need conversion before processing. Unsupported dtypes should raise clear errors where applicable.
 
-| Pandas Dtype | Support Status | Notes / Fix Hints |
-|---|---|---|
-| `int64` / `Int64` | ✅ Supported | Fully supported with native C++ columnar storage. Nulls mapped to `pd.NA`. |
-| `float64` / `Float64` | ✅ Supported | Fully supported with zero-copy conversion. Nulls mapped to `np.nan` or `pd.NA`. |
-| `bool` / `boolean` | ✅ Supported | Native booleans supported with C++ backing. Nulls mapped to `pd.NA`. |
-| `string` / `string[python]` | ✅ Supported | Native string extension type. Recommended for text. Nulls mapped to `pd.NA`. |
-| `object` (strings / scalars) | ✅ Supported | Handled as text or coerced to common type if mixed. |
-| `object` (nested / lists / dicts) | ❌ Unsupported | Nested structures not allowed in flat columnar storage. Raises `TypeError`. |
-| `category` | ❌ Unsupported | Raises `TypeError` with fix hint. Convert to string: `df["col"].astype(str)` |
-| `datetime64[ns]` / timezone-aware | ❌ Unsupported | Raises `TypeError` with fix hint. Use `df["col"].astype(str)` or string timestamps. |
-| `timedelta64[ns]` | ❌ Unsupported | Raises `TypeError` with fix hint. Use `df["col"].dt.total_seconds()`. |
-| `complex64` / `complex128` | ❌ Unsupported | Raises `TypeError` with fix hint. Split into real/imag columns or convert to strings. |
+| Pandas Dtype                      | Support Status | Notes / Fix Hints                                                                     |
+| --------------------------------- | -------------- | ------------------------------------------------------------------------------------- |
+| `int64` / `Int64`                 | ✅ Supported   | Fully supported with native C++ columnar storage. Nulls mapped to `pd.NA`.            |
+| `float64` / `Float64`             | ✅ Supported   | Fully supported with zero-copy conversion. Nulls mapped to `np.nan` or `pd.NA`.       |
+| `bool` / `boolean`                | ✅ Supported   | Native booleans supported with C++ backing. Nulls mapped to `pd.NA`.                  |
+| `string` / `string[python]`       | ✅ Supported   | Native string extension type. Recommended for text. Nulls mapped to `pd.NA`.          |
+| `object` (strings / scalars)      | ✅ Supported   | Handled as text or coerced to common type if mixed.                                   |
+| `object` (nested / lists / dicts) | ❌ Unsupported | Nested structures not allowed in flat columnar storage. Raises `TypeError`.           |
+| `category`                        | ❌ Unsupported | Raises `TypeError` with fix hint. Convert to string: `df["col"].astype(str)`          |
+| `datetime64[ns]` / timezone-aware | ❌ Unsupported | Raises `TypeError` with fix hint. Use `df["col"].astype(str)` or string timestamps.   |
+| `timedelta64[ns]`                 | ❌ Unsupported | Raises `TypeError` with fix hint. Use `df["col"].dt.total_seconds()`.                 |
+| `complex64` / `complex128`        | ❌ Unsupported | Raises `TypeError` with fix hint. Split into real/imag columns or convert to strings. |
 
 ### Notes
 
@@ -1066,6 +1087,7 @@ print(result.passed)
 ```
 
 Accepted examples include:
+
 - `+1-555-123-4567`
 - `+91 9876543210`
 - `5551234567`
@@ -1119,7 +1141,6 @@ schema = ar.Schema({
 result = ar.validate(frame, schema)
 ```
 
-
 For low-risk automatic cleanup:
 
 ```python
@@ -1162,22 +1183,22 @@ strict = ar.auto_clean(frame, mode="strict")
 
 Messy input:
 
-| order_id | customer | city |
-|:--|:--|:--|
-| 1001 | ` Ishan ` | ` Paris ` |
-| 1002 | ` Prasoon ` | `London` |
-| 1002 | ` Prasoon ` | `London` |
-| 1003 | ` Pranay ` | ` New York ` |
-| 1004 | ` Dhruv ` | ` Tokyo ` |
+| order_id | customer  | city       |
+| :------- | :-------- | :--------- |
+| 1001     | `Ishan`   | `Paris`    |
+| 1002     | `Prasoon` | `London`   |
+| 1002     | `Prasoon` | `London`   |
+| 1003     | `Pranay`  | `New York` |
+| 1004     | `Dhruv`   | `Tokyo`    |
 
 Expected cleaned output with `mode="strict"`:
 
-| order_id | customer | city |
-|:--|:--|:--|
-| 1001 | Ishan | Paris |
-| 1002 | Prasoon | London |
-| 1003 | Pranay | New York |
-| 1004 | Dhruv | Tokyo |
+| order_id | customer | city     |
+| :------- | :------- | :------- |
+| 1001     | Ishan    | Paris    |
+| 1002     | Prasoon  | London   |
+| 1003     | Pranay   | New York |
+| 1004     | Dhruv    | Tokyo    |
 
 `mode="safe"` only trims whitespace. Use `mode="strict"` when you also want deterministic built-in cleanup such as exact duplicate removal.
 
@@ -1216,20 +1237,20 @@ sharing **aggregate statistics only** or **raw/sample cell values**.
 
 **What is aggregate-only vs may expose raw values**
 
-| Field or export | Aggregate-only? | May expose raw / sample data? |
-| --- | --- | --- |
-| `row_count`, `column_count`, `duplicate_rows`, `duplicate_ratio`, `quality_score`, `score_components` | Yes | No |
-| `null_count`, `null_ratio`, `unique_count`, `unique_ratio`, whitespace / empty-string counts | Yes | No |
-| Numeric `min` / `max` / `mean` / `std` / `q25`–`q95` | Statistics only | Uncommon on large datasets; small tables can still be identifying |
-| `semantic_type`, `suggested_dtype`, `warnings` | Metadata / hints | Can imply PII type (for example email-like), not redaction |
-| `ColumnProfile.sample_values` (in-memory) | No | **Yes** — first *N* non-null values (`sample_size` on `ar.profile()`) |
-| `ColumnProfile.top_values` | Includes counts / ratios | **Yes** — frequent **actual** values (exact or approximate; see below) |
-| `report.to_dict()` | Mixed | **Yes** — includes `sample_values` and `top_values` unless you redact samples |
-| `report.to_dict(redact_sample_values=True)` | Mixed | `sample_values` → `"[REDACTED]"` (same list length); **`top_values` unchanged** |
-| `report.to_markdown()`, `report.summary()` | Yes | No raw cell values in output |
-| `report.to_html()` / notebook display of `report` | Partial | **Shows `top_values`** chips; does not list `sample_values` |
-| `report.to_pandas()` | Partial | Includes **`top_values`**, not `sample_values` |
-| `ProfileComparison.to_dict()` | Nested profiles | **Yes** — embeds `left_profile` / `right_profile` via default `to_dict()` |
+| Field or export                                                                                       | Aggregate-only?          | May expose raw / sample data?                                                   |
+| ----------------------------------------------------------------------------------------------------- | ------------------------ | ------------------------------------------------------------------------------- |
+| `row_count`, `column_count`, `duplicate_rows`, `duplicate_ratio`, `quality_score`, `score_components` | Yes                      | No                                                                              |
+| `null_count`, `null_ratio`, `unique_count`, `unique_ratio`, whitespace / empty-string counts          | Yes                      | No                                                                              |
+| Numeric `min` / `max` / `mean` / `std` / `q25`–`q95`                                                  | Statistics only          | Uncommon on large datasets; small tables can still be identifying               |
+| `semantic_type`, `suggested_dtype`, `warnings`                                                        | Metadata / hints         | Can imply PII type (for example email-like), not redaction                      |
+| `ColumnProfile.sample_values` (in-memory)                                                             | No                       | **Yes** — first _N_ non-null values (`sample_size` on `ar.profile()`)           |
+| `ColumnProfile.top_values`                                                                            | Includes counts / ratios | **Yes** — frequent **actual** values (exact or approximate; see below)          |
+| `report.to_dict()`                                                                                    | Mixed                    | **Yes** — includes `sample_values` and `top_values` unless you redact samples   |
+| `report.to_dict(redact_sample_values=True)`                                                           | Mixed                    | `sample_values` → `"[REDACTED]"` (same list length); **`top_values` unchanged** |
+| `report.to_markdown()`, `report.summary()`                                                            | Yes                      | No raw cell values in output                                                    |
+| `report.to_html()` / notebook display of `report`                                                     | Partial                  | **Shows `top_values`** chips; does not list `sample_values`                     |
+| `report.to_pandas()`                                                                                  | Partial                  | Includes **`top_values`**, not `sample_values`                                  |
+| `ProfileComparison.to_dict()`                                                                         | Nested profiles          | **Yes** — embeds `left_profile` / `right_profile` via default `to_dict()`       |
 
 Arnio does **not** auto-mask emails, phone numbers, or IDs by column type. Use the
 controls below for safer sharing.
@@ -1312,6 +1333,7 @@ Sample output now includes quantiles for numeric columns:
 ```
 
 ### Compare Profiles
+
 Use `ar.compare_profiles()` to compare two `DataQualityReport` profiles and flag per-column drift.
 
 ```python
@@ -1343,7 +1365,8 @@ if not result.passed:
 > **Scoring Contract:** The `quality_score` starts at 100.0 and subtracts capped penalties for duplicates, nulls, and suggested dtype mismatches. The `score_components` field exposes these penalties as negative values. (Note: Semantic-validity penalties are intentionally out of scope for the current implementation.)
 
 ### 1. Terminal Representation (Simplified Example)
-*A simplified view of the standard string representation of the report object:*
+
+_A simplified view of the standard string representation of the report object:_
 
 ```text
 DataQualityReport(
@@ -1362,7 +1385,8 @@ DataQualityReport(
 ```
 
 ### 2. JSON Format (Excerpts from .to_dict())
-*Key fields from the structured JSON export for integration with APIs or dashboards:*
+
+_Key fields from the structured JSON export for integration with APIs or dashboards:_
 
 ```json
 {
@@ -1399,16 +1423,31 @@ DataQualityReport(
       "max": 90.0,
       "warnings": ["contains_nulls"],
       "histogram": [
-        {"bucket_start": 85.5, "bucket_end": 85.95, "count": 1, "ratio": 0.333333},
-        {"bucket_start": 85.95, "bucket_end": 86.4, "count": 0, "ratio": 0.0},
-        {"bucket_start": 86.4, "bucket_end": 86.85, "count": 0, "ratio": 0.0},
-        {"bucket_start": 86.85, "bucket_end": 87.3, "count": 0, "ratio": 0.0},
-        {"bucket_start": 87.3, "bucket_end": 87.75, "count": 0, "ratio": 0.0},
-        {"bucket_start": 87.75, "bucket_end": 88.2, "count": 0, "ratio": 0.0},
-        {"bucket_start": 88.2, "bucket_end": 88.65, "count": 1, "ratio": 0.333333},
-        {"bucket_start": 88.65, "bucket_end": 89.1, "count": 0, "ratio": 0.0},
-        {"bucket_start": 89.1, "bucket_end": 89.55, "count": 0, "ratio": 0.0},
-        {"bucket_start": 89.55, "bucket_end": 90.0, "count": 1, "ratio": 0.333333}
+        {
+          "bucket_start": 85.5,
+          "bucket_end": 85.95,
+          "count": 1,
+          "ratio": 0.333333
+        },
+        { "bucket_start": 85.95, "bucket_end": 86.4, "count": 0, "ratio": 0.0 },
+        { "bucket_start": 86.4, "bucket_end": 86.85, "count": 0, "ratio": 0.0 },
+        { "bucket_start": 86.85, "bucket_end": 87.3, "count": 0, "ratio": 0.0 },
+        { "bucket_start": 87.3, "bucket_end": 87.75, "count": 0, "ratio": 0.0 },
+        { "bucket_start": 87.75, "bucket_end": 88.2, "count": 0, "ratio": 0.0 },
+        {
+          "bucket_start": 88.2,
+          "bucket_end": 88.65,
+          "count": 1,
+          "ratio": 0.333333
+        },
+        { "bucket_start": 88.65, "bucket_end": 89.1, "count": 0, "ratio": 0.0 },
+        { "bucket_start": 89.1, "bucket_end": 89.55, "count": 0, "ratio": 0.0 },
+        {
+          "bucket_start": 89.55,
+          "bucket_end": 90.0,
+          "count": 1,
+          "ratio": 0.333333
+        }
       ]
     },
     "city": {
@@ -1416,15 +1455,15 @@ DataQualityReport(
       "semantic_type": "categorical",
       "null_count": 0,
       "top_values": [
-        {"value": "London", "count": 3, "ratio": 0.5},
-        {"value": "Paris", "count": 2, "ratio": 0.333}
+        { "value": "London", "count": 3, "ratio": 0.5 },
+        { "value": "Paris", "count": 2, "ratio": 0.333 }
       ]
     }
   },
   "suggestions": [
     {
       "step": "cast_types",
-      "kwargs": {"score": "float64"},
+      "kwargs": { "score": "float64" },
       "confidence_score": 0.95,
       "confidence_reason": "Column 'score' conforms perfectly to float64 structure."
     }
@@ -1433,15 +1472,17 @@ DataQualityReport(
 ```
 
 ### 3. Example Summary Table
-*A manually formatted Markdown table representing the core metrics:*
 
-| Metric | Value |
-| :--- | :--- |
-| **Row Count** | 4 |
-| **Column Count** | 3 |
-| **Memory Usage** | 733 bytes |
-| **Duplicates** | 0 (0.0%) |
-| **Quality Score** | 100.0 |
+_A manually formatted Markdown table representing the core metrics:_
+
+| Metric            | Value     |
+| :---------------- | :-------- |
+| **Row Count**     | 4         |
+| **Column Count**  | 3         |
+| **Memory Usage**  | 733 bytes |
+| **Duplicates**    | 0 (0.0%)  |
+| **Quality Score** | 100.0     |
+
 <br>
 
 ### Bootstrapping a Schema from a Quality Report
@@ -1468,16 +1509,16 @@ null values were observed during profiling.
 
 ## 🗺️ Roadmap
 
-| Version | Focus | Status |
-|:---:|:---|:---:|
-| **v1.0** | Stable release · cross-platform wheels · CI/CD · PyPI publishing · Google Colab support | ✅ Shipped |
-| **v1.1** | Production readiness · release hardening · docs/tooling | ✅ Shipped |
-| **v1.2** | C++ pipeline optimization · speed parity with pandas · hash-based deduplication | 🔨 Active |
-| **v1.3** | Chunked / streaming processing · Parquet & JSON readers | 📋 Planned |
-| **v1.4** | Parallel column processing · SIMD string operations | 💭 Exploring |
+| Version  | Focus                                                                                   |    Status    |
+| :------: | :-------------------------------------------------------------------------------------- | :----------: |
+| **v1.0** | Stable release · cross-platform wheels · CI/CD · PyPI publishing · Google Colab support |  ✅ Shipped  |
+| **v1.1** | Production readiness · release hardening · docs/tooling                                 |  ✅ Shipped  |
+| **v1.2** | C++ pipeline optimization · speed parity with pandas · hash-based deduplication         |  🔨 Active   |
+| **v1.3** | Chunked / streaming processing · Parquet & JSON readers                                 |  📋 Planned  |
+| **v1.4** | Parallel column processing · SIMD string operations                                     | 💭 Exploring |
 
 > For CLI command reference and examples, see [CLI_REFERENCE.md](CLI_REFERENCE.md).
-<br>
+> <br>
 
 ---
 
@@ -1532,6 +1573,7 @@ the old step name can stay temporarily available and will emit a
 ### If you do know C++
 
 The biggest performance wins are in:
+
 - **`drop_duplicates`** — replacing `std::ostringstream` row serialization with proper hash-based comparisons
 - **`strip_whitespace`** — converting from copy-on-write to in-place mutation
 - **Parallel column processing** — `std::thread` across independent columns
@@ -1661,4 +1703,3 @@ arnio/
 <sub>Built with C++ and pybind11 · Licensed under MIT · Maintained by <a href="https://github.com/im-anishraj">@im-anishraj</a></sub>
 
 </div>
-
