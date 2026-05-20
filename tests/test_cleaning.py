@@ -2223,3 +2223,29 @@ class TestSelectColumns:
 
         with pytest.raises(TypeError, match="only string column names"):
             ar.select_columns(frame, ["age", 1])
+
+    def test_select_columns_rejects_empty(self):
+        frame = ar.from_pandas(
+            pd.DataFrame(
+                {
+                    "id": [1, 2],
+                    "name": ["Alice", "Bob"],
+                }
+            )
+        )
+
+        with pytest.raises(ValueError):
+            ar.select_columns(frame, [])
+
+    def test_select_columns_rejects_duplicates(self):
+        frame = ar.from_pandas(
+            pd.DataFrame(
+                {
+                    "id": [1, 2],
+                    "name": ["Alice", "Bob"],
+                }
+            )
+        )
+
+        with pytest.raises(ValueError):
+            ar.select_columns(frame, ["id", "id"])

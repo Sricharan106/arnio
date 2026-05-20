@@ -261,46 +261,8 @@ def keep_rows_with_nulls(
 
 
 def select_columns(frame: ArFrame, columns: Sequence[str]) -> ArFrame:
-    """Return a new frame containing only the requested columns.
-
-    Parameters
-    ----------
-    frame : ArFrame
-        Input data frame.
-    columns : sequence of str
-        Column names to keep in the requested order.
-
-    Returns
-    -------
-    ArFrame
-        New frame with only the selected columns.
-
-    Raises
-    ------
-    TypeError
-        If columns is a string/bytes value or contains non-string items.
-    ValueError
-        If any requested column is missing.
-
-    Examples
-    --------
-    >>> selected = ar.select_columns(frame, ["id", "name"])
-    """
-    requested_columns = _validate_column_sequence(
-        columns,
-        argument_name="columns",
-    )
-
-    missing = [column for column in requested_columns if column not in frame.columns]
-
-    if missing:
-        raise ValueError(f"Columns not found in frame: {missing}")
-
-    from .convert import from_pandas, to_pandas
-
-    df = to_pandas(frame)
-
-    return from_pandas(df.loc[:, requested_columns])
+    """Return a new frame containing only the requested columns."""
+    return frame.select_columns(columns)
 
 
 def fill_nulls(
