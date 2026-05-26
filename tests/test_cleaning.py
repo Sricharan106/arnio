@@ -2030,6 +2030,85 @@ class TestCleanAPI:
         result = ar.clean(frame, strip_whitespace=False, drop_nulls=True)
         assert len(result) < len(frame)
 
+    def test_clean_drop_nulls_with_subset():
+        frame = ar.from_dict({
+            "name": ["Alice", None, "Charlie"],
+            "age": [25, 30, None],
+            }
+        )
+
+        result = ar.clean(
+            frame,
+            drop_nulls={"subset": ["name"]},
+        )
+
+        data = result.to_dict()
+
+        assert data["name"] == ["Alice", "Charlie"]
+        assert data["age"] == [25, None]
+
+
+    def test_clean_drop_duplicates_keep_last():
+        frame = ar.from_dict({
+            "id": [1, 1, 2],
+            "value": ["first", "last", "unique"],
+            })
+
+        result = ar.clean(
+            frame,
+            drop_duplicates={"keep": "last"},
+        )
+
+        data = result.to_dict()
+
+        assert data["id"] == [1, 2]
+        assert data["value"] == ["last", "unique"]
+
+
+    def test_clean_strip_whitespace_subset():
+        frame = ar.from_dict({
+            "name": ["  Alice  ", "  Bob  "],
+            "city": ["  NYC  ", "  LA  "],
+        })
+
+        result = ar.clean(
+            frame,
+            strip_whitespace={"subset": ["name"]},
+        )
+
+        data = result.to_dict()
+
+        assert data["name"] == ["Alice", "Bob"]
+
+        # city should remain untouched
+        assert data["city"] == ["  NYC  ", "  LA  "]
+
+
+    def test_clean_backward_compatibility_boolean_usage():
+        frame = ar.from_dict({
+            "name": ["  Alice  ", " Bob "],
+        })
+
+        result = ar.clean(
+            frame,
+            strip_whitespace=True,
+        )
+
+        data = result.to_dict()
+
+        assert data["name"] == ["Alice", "Bob"]
+
+
+    def test_clean_invalid_option_type():
+        frame = ar.from_dict({
+            "name": ["Alice"],
+        })
+
+        with pytest.raises(TypeError):
+            ar.clean(
+                frame,
+                drop_nulls="invalid",
+            )
 
 class TestFilterRows:
     def test_filter_rows_missing_column_raises_clear_error(self):
