@@ -178,9 +178,9 @@ class TestCsvChunkedNullColumnSchemaInference:
         assert len(chunks) == 2
 
         dtypes = chunks[1].dtypes
-        assert dtypes["score"] == "float64", (
-            f"Expected float64 for 'score' in chunk 2, got {dtypes['score']!r}."
-        )
+        assert (
+            dtypes["score"] == "float64"
+        ), f"Expected float64 for 'score' in chunk 2, got {dtypes['score']!r}."
 
     def test_null_first_chunk_values_are_null_not_string(self, tmp_path):
         """Null values in chunk 1 must be null, not the string ''."""
@@ -191,8 +191,12 @@ class TestCsvChunkedNullColumnSchemaInference:
         df = pd.concat([ar.to_pandas(c) for c in chunks], ignore_index=True)
 
         # Rows 0 and 1 must be genuinely null (NaN / pd.NA), not the string "".
-        assert pd.isna(df.loc[0, "value"]), "Row 0 'value' should be null, not a string."
-        assert pd.isna(df.loc[1, "value"]), "Row 1 'value' should be null, not a string."
+        assert pd.isna(
+            df.loc[0, "value"]
+        ), "Row 0 'value' should be null, not a string."
+        assert pd.isna(
+            df.loc[1, "value"]
+        ), "Row 1 'value' should be null, not a string."
         # Rows 2 and 3 must be integers.
         assert df.loc[2, "value"] == 42
         assert df.loc[3, "value"] == 99
@@ -229,9 +233,9 @@ class TestCsvChunkedNullColumnSchemaInference:
                 )
 
         # Sanity: b must actually have resolved to int64.
-        assert resolved_dtypes["b"] == "int64", (
-            f"Column 'b' never resolved to int64; got {resolved_dtypes['b']!r}"
-        )
+        assert (
+            resolved_dtypes["b"] == "int64"
+        ), f"Column 'b' never resolved to int64; got {resolved_dtypes['b']!r}"
 
     def test_genuinely_all_null_column_becomes_string(self, tmp_path):
         """A column that is null in every row across all chunks must be STRING."""
@@ -278,16 +282,14 @@ class TestCsvChunkedNullColumnSchemaInference:
         assert df.loc[5, "y"] == 50
 
         # The last chunk (where y was resolved) must have int64, not string.
-        assert chunks[-1].dtypes["y"] == "int64", (
-            f"Expected last chunk dtype int64, got {chunks[-1].dtypes['y']!r}"
-        )
+        assert (
+            chunks[-1].dtypes["y"] == "int64"
+        ), f"Expected last chunk dtype int64, got {chunks[-1].dtypes['y']!r}"
 
         # Columns x and z must match read_csv exactly (they were never all-null).
         full_df = ar.to_pandas(ar.read_csv(str(path)))
         pd.testing.assert_series_equal(df["x"], full_df["x"], check_names=True)
-        pd.testing.assert_series_equal(
-            df["z"], full_df["z"], check_names=True
-        )
+        pd.testing.assert_series_equal(df["z"], full_df["z"], check_names=True)
 
 
 class TestCsvChunkedIssue924:
