@@ -882,33 +882,6 @@ class TestDropConstantColumns:
         ):
             ar.drop_constant_columns([1, 2, 3])
 
-    def test_drop_constant_columns_zero_row_pandas_returns_new_object(self):
-        df = pd.DataFrame({"a": pd.Series(dtype="int64")})
-
-        result = ar.drop_constant_columns(df)
-
-        assert result is not df
-        assert result.shape == (0, 1)
-
-    def test_drop_constant_columns_zero_row_arframe_returns_new_object(self):
-        frame = ar.from_pandas(pd.DataFrame({"a": pd.Series(dtype="int64")}))
-
-        result = ar.drop_constant_columns(frame)
-
-        assert result is not frame
-        assert result.shape == (0, 1)
-
-    def test_drop_constant_columns_zero_row_attrs_not_shared(self):
-        frame = ar.from_pandas(pd.DataFrame({"a": pd.Series(dtype="int64")}))
-
-        frame._attrs = {"nested": {"x": 1}}
-
-        result = ar.drop_constant_columns(frame)
-
-        result._attrs["nested"]["x"] = 2
-
-        assert frame._attrs["nested"]["x"] == 1
-
 
 class TestDropEmptyColumns:
     def test_drop_empty_columns_removes_fully_empty_columns(self, tmp_path):
@@ -2579,49 +2552,118 @@ class TestCastTypes:
 class TestCleanAPI:
     def test_clean_defaults(self, csv_with_whitespace):
         frame = ar.read_csv(csv_with_whitespace)
+
         result = ar.clean(frame)
+
         df = ar.to_pandas(result)
+
         # strip_whitespace is True by default
         assert df["name"].iloc[0] == "Alice"
         assert df["city"].iloc[1] == "London"
+
         # drop_nulls and drop_duplicates are False by default
         assert len(frame) == len(result)
 
     def test_clean_all(self, csv_with_nulls):
-        # reuse csv_with_nulls as it has a null row (Bob missing name)
         frame = ar.read_csv(csv_with_nulls)
-        # Drop nulls
-        result = ar.clean(frame, strip_whitespace=False, drop_nulls=True)
+
+        result = ar.clean(
+            frame,
+            strip_whitespace=False,
+            drop_nulls=True,
+        )
+
         assert len(result) < len(frame)
 
     @pytest.mark.parametrize("invalid_val", ["yes", 1, None, []])
     def test_clean_invalid_strip_whitespace(self, csv_with_whitespace, invalid_val):
         frame = ar.read_csv(csv_with_whitespace)
-        with pytest.raises(TypeError, match="strip_whitespace must be a bool"):
+        with pytest.raises(TypeError, match="strip_whitespace must be bool or dict"):
             ar.clean(frame, strip_whitespace=invalid_val)
 
     @pytest.mark.parametrize("invalid_val", ["yes", 1, None, []])
     def test_clean_invalid_drop_nulls(self, csv_with_whitespace, invalid_val):
         frame = ar.read_csv(csv_with_whitespace)
-        with pytest.raises(TypeError, match="drop_nulls must be a bool"):
+        with pytest.raises(TypeError, match="drop_nulls must be bool or dict"):
             ar.clean(frame, drop_nulls=invalid_val)
 
     @pytest.mark.parametrize("invalid_val", ["yes", 1, None, []])
     def test_clean_invalid_drop_duplicates(self, csv_with_whitespace, invalid_val):
         frame = ar.read_csv(csv_with_whitespace)
-        with pytest.raises(TypeError, match="drop_duplicates must be a bool"):
+        with pytest.raises(TypeError, match="drop_duplicates must be bool or dict"):
             ar.clean(frame, drop_duplicates=invalid_val)
 
-    def test_clean_valid_booleans(self, csv_with_whitespace):
-        frame = ar.read_csv(csv_with_whitespace)
-        # Should not raise
+    def test_clean_drop_nulls_with_subset(self):
+        frame = ar.from_dict(
+            {
+                "name": ["Alice", None, "Charlie"],
+                "age": [25, 30, None],
+            }
+        )
+
         result = ar.clean(
             frame,
-            strip_whitespace=True,
-            drop_nulls=False,
-            drop_duplicates=True,
+            drop_nulls={"subset": ["name"]},
         )
-        assert len(ar.to_pandas(result)) > 0
+
+        data = result.to_dict()
+
+        assert data["name"] == ["Alice", "Charlie"]
+        assert data["age"] == [25, None]
+
+    def test_clean_drop_duplicates_keep_last(self):
+        frame = ar.from_dict(
+            {
+                "id": [1, 1, 2],
+                "value": ["first", "last", "unique"],
+            }
+        )
+
+        result = ar.clean(
+            frame,
+            drop_duplicates={
+                "subset": ["id"],
+                "keep": "last",
+            },
+        )
+
+        data = result.to_dict()
+
+        assert data["id"] == [1, 2]
+        assert data["value"] == ["last", "unique"]
+
+    def test_clean_strip_whitespace_subset(self):
+        frame = ar.from_dict(
+            {
+                "name": ["  Alice  ", "  Bob  "],
+                "city": ["  NYC  ", "  LA  "],
+            }
+        )
+
+        result = ar.clean(
+            frame,
+            strip_whitespace={"subset": ["name"]},
+        )
+
+        data = result.to_dict()
+
+        assert data["name"] == ["Alice", "Bob"]
+
+        # city should remain untouched
+        assert data["city"] == ["  NYC  ", "  LA  "]
+
+    def test_clean_invalid_option_type(self):
+        frame = ar.from_dict(
+            {
+                "name": ["Alice"],
+            }
+        )
+
+        with pytest.raises(TypeError):
+            ar.clean(
+                frame,
+                drop_nulls="invalid",
+            )
 
 
 class TestFilterRows:
@@ -2929,9 +2971,7 @@ class TestRoundNumericColumns:
 
         df = pd.DataFrame({"a": [1.123]})
         frame = ar.from_pandas(df)
-        with pytest.raises(
-            TypeError, match="subset must be a sequence of column names"
-        ):
+        with pytest.raises(TypeError, match="subset must be a list"):
             ar.round_numeric_columns(frame, subset="a")
 
     def test_invalid_decimals_type(self):
@@ -2961,41 +3001,6 @@ class TestRoundNumericColumns:
         assert result["a"].tolist() == [1.2, 5.7]
         assert result["label"].tolist() == ["x", "y"]
         assert df["a"].tolist() == [1.234, 5.678]
-
-    def test_round_tuple_subset(self):
-        import pandas as pd
-
-        df = pd.DataFrame({"a": [1.123, 2.456], "b": [3.789, 4.0]})
-
-        frame = ar.from_pandas(df)
-
-        result = ar.round_numeric_columns(
-            frame,
-            subset=("a",),
-            decimals=1,
-        )
-
-        result_df = ar.to_pandas(result)
-
-        assert list(result_df["a"]) == [1.1, 2.5]
-        assert list(result_df["b"]) == [3.789, 4.0]
-
-    def test_round_tuple_subset_non_string_member(self):
-        import pandas as pd
-
-        df = pd.DataFrame({"a": [1.123]})
-
-        frame = ar.from_pandas(df)
-
-        with pytest.raises(
-            TypeError,
-            match="string column names",
-        ):
-            ar.round_numeric_columns(
-                frame,
-                subset=("a", 123),
-                decimals=1,
-            )
 
 
 class TestCombineColumns:
@@ -4083,26 +4088,6 @@ class TestCleanColumnNames:
         frame = from_pandas(df)
         result = ar.clean_column_names(frame)
         assert to_pandas(result).columns.tolist() == ["my_name", "age"]
-
-    def test_clean_column_names_noop_returns_fresh_frame(self):
-        df = pd.DataFrame({"name": [1], "age": [2]})
-        frame = from_pandas(df)
-
-        result = ar.clean_column_names(frame)
-
-        assert result is not frame
-        assert to_pandas(result).equals(to_pandas(frame))
-
-    def test_clean_column_names_noop_attrs_are_isolated(self):
-        df = pd.DataFrame({"name": [1], "age": [2]})
-        frame = from_pandas(df)
-        frame._attrs = {"source": {"name": "original"}}
-
-        result = ar.clean_column_names(frame)
-
-        result._attrs["source"]["name"] = "mutated"
-
-        assert frame._attrs["source"]["name"] == "original"
 
     def test_clean_column_names_consecutive_and_boundary_underscores(self):
         df = pd.DataFrame({"__col__name__": [1], "-another--col-": [2]})

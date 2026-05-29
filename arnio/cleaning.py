@@ -507,17 +507,7 @@ def drop_constant_columns(
     frame, is_arframe = _validate_frame(frame, allow_pandas=True)
     df = to_pandas(frame) if is_arframe else frame
     if len(df.index) == 0:
-        result_df = df.copy(deep=True)
-
-        if is_arframe:
-            result = from_pandas(result_df)
-
-            if getattr(frame, "_attrs", None) is not None:
-                result._attrs = copy.deepcopy(frame._attrs)
-
-            return result
-
-        return result_df
+        return frame
 
     nunique_counts = df.nunique(dropna=False)
     constant_columns = nunique_counts[nunique_counts == 1].index.tolist()
@@ -1278,12 +1268,30 @@ def cast_types(
     return ArFrame(result)
 
 
+def _append_clean_step(
+    steps: list[tuple],
+    name: str,
+    option: bool | dict,
+) -> None:
+    if option is False:
+        return
+
+    if option is True:
+        steps.append((name,))
+        return
+
+    if isinstance(option, Mapping):
+        steps.append((name, dict(option)))
+        return
+    raise TypeError(f"{name} must be bool or dict, got {type(option).__name__}")
+
+
 def clean(
     frame: ArFrame,
     *,
-    strip_whitespace: bool = True,
-    drop_nulls: bool = False,
-    drop_duplicates: bool = False,
+    strip_whitespace: bool | dict = True,
+    drop_nulls: bool | dict = False,
+    drop_duplicates: bool | dict = False,
 ) -> ArFrame:
     """Convenience function to apply common cleaning operations.
 
@@ -1296,12 +1304,15 @@ def clean(
     ----------
     frame : ArFrame
         Input data frame.
-    strip_whitespace : bool, default True
+    strip_whitespace : bool or dict, default True
         Whether to trim leading/trailing whitespace from string columns.
-    drop_nulls : bool, default False
+        Pass a dict to specify kwargs (e.g., {"subset": ["col1"]}).
+    drop_nulls : bool or dict, default False
         Whether to remove rows containing null/empty values.
-    drop_duplicates : bool, default False
+        Pass a dict to specify kwargs (e.g., {"subset": ["col2"]}).
+    drop_duplicates : bool or dict, default False
         Whether to remove duplicate rows.
+        Pass a dict to specify kwargs (e.g., {"keep": "last"}).
 
     Returns
     -------
@@ -1311,28 +1322,18 @@ def clean(
     Examples
     --------
     >>> frame = ar.read_csv("data.csv")
+    >>> # Basic boolean usage
     >>> cleaned = ar.clean(frame, strip_whitespace=True, drop_nulls=True)
+    >>> # Advanced dict configuration usage
+    >>> cleaned = ar.clean(frame, drop_duplicates={"keep": "last"})
     """
-    frame, _ = _validate_frame(frame)
-    if not isinstance(strip_whitespace, bool):
-        raise TypeError("strip_whitespace must be a bool")
-    if not isinstance(drop_nulls, bool):
-        raise TypeError("drop_nulls must be a bool")
-    if not isinstance(drop_duplicates, bool):
-        raise TypeError("drop_duplicates must be a bool")
-
     from .pipeline import pipeline
 
     steps = []
-    if strip_whitespace:
-        steps.append(("strip_whitespace",))
-    if drop_nulls:
-        steps.append(("drop_nulls",))
-    if drop_duplicates:
-        steps.append(("drop_duplicates",))
 
-    if not steps:
-        return frame
+    _append_clean_step(steps, "strip_whitespace", strip_whitespace)
+    _append_clean_step(steps, "drop_nulls", drop_nulls)
+    _append_clean_step(steps, "drop_duplicates", drop_duplicates)
 
     return pipeline(frame, steps)
 
@@ -1414,7 +1415,7 @@ def filter_rows(
 def round_numeric_columns(
     frame,
     *,
-    subset: Sequence[str] | None = None,
+    subset: list[str] | None = None,
     decimals: int = 0,
 ):
     """Round numeric columns to specified decimal places.
@@ -1425,7 +1426,7 @@ def round_numeric_columns(
     ----------
     frame : ArFrame or pd.DataFrame
         Input data frame.
-    subset : sequence of str, optional
+    subset : list[str], optional
         Column names to round. If None, applies to all numeric columns.
     decimals : int, default 0
         Number of decimal places to round to.
@@ -1443,7 +1444,8 @@ def round_numeric_columns(
     from .convert import from_pandas, to_pandas
 
     frame, is_arframe = _validate_frame(frame, allow_pandas=True)
-
+    if subset is not None and not isinstance(subset, list):
+        raise TypeError("subset must be a list of column names")
     if isinstance(decimals, bool) or not isinstance(decimals, int):
         raise TypeError("decimals must be an integer")
 
@@ -2099,7 +2101,7 @@ def clean_column_names(
         if original != updated
     }
     if not mapping:
-        return copy.deepcopy(frame)
+        return frame
 
     result = _rename_columns(frame._frame, mapping)
     return ArFrame(result)
